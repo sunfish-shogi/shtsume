@@ -71,7 +71,7 @@ static char *st_usi_koma[8]       = {
 static pthread_mutex_t  st_lock;
 static strqueue_t  *st_que = NULL;
 static struct timespec st_rqpt = { 0, 1000000};
-static volatile bool st_quit_received = false;
+static bool st_quit_received = false;   //st_lockで保護する
 
 /* -----------
  スタティック関数
@@ -539,7 +539,9 @@ bool usi_receive             (const char *buf){
     if(!strncmp(buf, "quit", strlen("quit"))){
         //探索中であれば中断させ、メインイベントループを終了させる
         g_stop_received = true;
+        pthread_mutex_lock(&st_lock);
         st_quit_received = true;
+        pthread_mutex_unlock(&st_lock);
         return false;
     }
     //排他ロック
@@ -567,15 +569,20 @@ bool usi_receive             (const char *buf){
  quitコマンドを受信した場合false、それ以外はtrue
  --------------------------------------------------------------------------- */
 bool retrieve_message        (char *buf){
-    while(!st_que){
-        if(st_quit_received) return false;
+    while(true){
+        pthread_mutex_lock(&st_lock);
+        if(st_quit_received){
+            pthread_mutex_unlock(&st_lock);
+            return false;
+        }
+        if(st_que){
+            st_que = strqueue_pop(st_que, buf);
+            pthread_mutex_unlock(&st_lock);
+            return true;
+        }
+        pthread_mutex_unlock(&st_lock);
         nanosleep(&st_rqpt, NULL);
     }
-    if(st_quit_received) return false;
-    pthread_mutex_lock(&st_lock);
-    st_que = strqueue_pop(st_que, buf);
-    pthread_mutex_unlock(&st_lock);
-    return true;
 }
 
 const char *read_go_time(unsigned int *tm, const char *str){
