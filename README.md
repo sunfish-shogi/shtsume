@@ -14,6 +14,29 @@ shtsume(**sh**ell **tsume**shogi solver)は以下の特徴を持つ詰将棋解�
 * macOS (INTEL, M1) 
 * Windows(+minGW w64 環境）  
 
+##  WebAssembly版のビルド
+[ShogiHome](https://github.com/sunfish-shogi/shogihome) のWeb版で動作するWebAssembly版をビルドできます。
+成果物は ShogiHome の WebAssembly エンジン ABI (`shogihome-wasm-engine/1`) に従います。
+
+Docker を使って Emscripten の公式イメージ上でビルドする場合
+```
+./wasm/build-in-docker.sh
+```
+Emscripten (emcc) と Node.js がインストールされた環境でビルドする場合
+```
+./wasm/build.sh
+```
+`build/wasm/shtsume/` に以下が出力されます。ディレクトリごと ShogiHome の `public/engines/` に配置してください。
+* `engine.json`  マニフェスト（エンジンの `usi` への応答から name / author / options を自動生成）
+* `shtsume.js`, `shtsume.wasm`
+* `LICENSE.txt`
+
+注意事項
+* スレッド(pthread)を使用するため、cross-origin isolation が必要です。
+* 局面表の大きさ(USI_Hash)の上限は512です（1あたり約0.75MByte）。
+* ファイルを出力するオプション(out_lvkif, summary, s_allmove, user_path)はブラウザでは意味を持たないため、マニフェストには載せていません。
+* マニフェストの元になる設定（プリセット等）は `wasm/manifest.json` にあります。
+
 ##  Goal
 shtsumeの開発は以下を目標としています。  
 * 高効率　　少ない探索量で解を導きます。    
