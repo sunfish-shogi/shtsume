@@ -73,7 +73,9 @@ extern bool                 g_commandline;
 #define TBASE_SIZE_DEFAULT  256
 #define TBASE_SIZE_MIN      1
 
-#if    defined __MACH__    //macOS 64bit
+#if    defined __EMSCRIPTEN__ //WebAssembly (wasm32 ブラウザで使用できるメモリは2GB程度)
+#define TBASE_SIZE_MAX      512
+#elif  defined __MACH__    //macOS 64bit
 #define TBASE_SIZE_MAX      65535
 #elif  defined __WIN64__   //Windows 64bit
 #define TBASE_SIZE_MAX      65535

@@ -1,0 +1,25 @@
+{
+  "abi": "shogihome-wasm-engine/1",
+  "module": "shtsume.js",
+  "moduleFormat": "esm",
+  "requiresCrossOriginIsolation": true,
+  "licenses": [
+    {
+      "spdx": "MIT",
+      "file": "LICENSE.txt",
+      "source": "https://github.com/hkijin/shtsume"
+    }
+  ],
+  "optionNames": ["USI_Hash", "USI_Ponder", "mt_min_pn", "search_level"],
+  "presets": [
+    {
+      "id": "shtsume-wasm-v1",
+      "displayName": "shtsume",
+      "values": {
+        "USI_Hash": 64,
+        "USI_Ponder": "false"
+      },
+      "tags": ["mate"]
+    }
+  ]
+}

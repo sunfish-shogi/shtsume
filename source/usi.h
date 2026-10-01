@@ -118,7 +118,10 @@ char *sfen_to_ssdata (char *str, ssdata_t *ssdata);
 char *sfen_to_move   (move_t *move, char *str);
 int   move_to_sfen   (char *str,  move_t move);
 
-int usi_main (void);
+int  usi_main       (void);
+void usi_init       (void);               //USIエンジンとしての初期化処理
+void usi_event_loop (void);               //メインイベントループ（quit受信で戻る）
+bool usi_receive    (const char *buf);    //受信メッセージの処理（quit受信でfalse）
 
 //エラー処理
 #define USI_UNKNOWN_MSG 0

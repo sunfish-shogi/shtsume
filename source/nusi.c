@@ -130,7 +130,9 @@ void res_usi_cmd          (void)
 //isreadyコマンド
 void res_isready_cmd      (void)
 {
-    //tbaseの作成
+    //tbaseの作成（isreadyを繰り返し受信した場合は以前のものを破棄する）
+    if(g_tbase) destroy_tbase(g_tbase);
+    if(g_mtt)   destroy_mtt(g_mtt);
     uint64_t size = g_usi_hash*MCARDS_PER_MBYTE-1;
     g_tbase = create_tbase(size);
     g_mtt = create_mtt(MTT_SIZE);
@@ -170,6 +172,8 @@ void res_setoption_cmd    (const char *buf)
                      len = strlen("setoption name USI_Hash value ")))
     {
         g_usi_hash = atoi(buf+len);
+        g_usi_hash = MAX(TBASE_SIZE_MIN,g_usi_hash);
+        g_usi_hash = MIN(TBASE_SIZE_MAX,g_usi_hash);
         sprintf(str, "setoption USI_Hash %llu\n", g_usi_hash);
         record_log(str);
     }
