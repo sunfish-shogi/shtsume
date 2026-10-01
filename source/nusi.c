@@ -441,7 +441,7 @@ void res_stop_cmd         (void)
      * に成るため、中断されるが、ここで変数をリセットしておく。
      * ただし、後続のstop/gameover/quitが未処理の場合はそのまま保持する。
      */
-    g_stop_received = usi_stop_pending();
+    usi_reset_stop_received();
 }
 
 /*

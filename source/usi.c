@@ -538,12 +538,12 @@ void *receiving_thread       (void *arg){
 bool usi_receive             (const char *buf){
     if(!strncmp(buf, "quit", strlen("quit"))){
         //メインイベントループを終了させ、探索中であれば中断させる。
-        //探索開始時にg_stop_receivedが初期化されても中断が失われないよう、
-        //st_quit_receivedを先に立てる（usi_stop_pending, bn_search参照）。
+        //g_stop_receivedへの書き込みはusi_reset_stop_receivedと競合しないよう
+        //st_lockの中で行う。
         pthread_mutex_lock(&st_lock);
         st_quit_received = true;
-        pthread_mutex_unlock(&st_lock);
         g_stop_received = true;
+        pthread_mutex_unlock(&st_lock);
         return false;
     }
     //排他ロック
@@ -551,7 +551,7 @@ bool usi_receive             (const char *buf){
     
     if(is_stop_command(buf)){
         //探索開始時にg_stop_receivedが初期化されても中断が失われないよう、
-        //未処理の数を数えておく（usi_stop_pending, bn_search参照）。
+        //未処理の数を数えておく（usi_reset_stop_received参照）。
         st_stop_pending++;
         g_stop_received = true;
     }
@@ -565,16 +565,16 @@ bool usi_receive             (const char *buf){
     return true;
 }
 /* ---------------------------------------------------------------------------
- usi_stop_pending
+ usi_reset_stop_received
+ g_stop_receivedを初期化する。ただし、quitを受信済み、またはstop/gameoverが
+ 未処理の場合はtrueのまま保持する。
  キューはFIFOのため、未処理のstop/gameoverは処理中のコマンドより後に受信したもの。
- [戻り値]
- quitを受信済み、またはstop/gameoverが未処理であればtrue
+ 確認と書き込みの間にstop等を受信して上書きしてしまわないよう、st_lockの中で行う。
  --------------------------------------------------------------------------- */
-bool usi_stop_pending        (void){
+void usi_reset_stop_received (void){
     pthread_mutex_lock(&st_lock);
-    bool pending = st_quit_received || st_stop_pending > 0;
+    g_stop_received = st_quit_received || st_stop_pending > 0;
     pthread_mutex_unlock(&st_lock);
-    return pending;
 }
 /* ---------------------------------------------------------------------------
  is_stop_command
