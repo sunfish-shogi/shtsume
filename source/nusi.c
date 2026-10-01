@@ -439,8 +439,9 @@ void res_stop_cmd         (void)
     /*
      * 詰探索実施中にstopコマンドを受けた場合、グローバル変数g_stop_recievedがtrue
      * に成るため、中断されるが、ここで変数をリセットしておく。
+     * ただし、後続のstop/gameover/quitが未処理の場合はそのまま保持する。
      */
-    g_stop_received = false;
+    g_stop_received = usi_stop_pending();
 }
 
 /*

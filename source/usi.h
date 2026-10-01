@@ -122,7 +122,7 @@ int  usi_main       (void);
 void usi_init       (void);               //USIエンジンとしての初期化処理
 void usi_event_loop (void);               //メインイベントループ（quit受信で戻る）
 bool usi_receive    (const char *buf);    //受信メッセージの処理（quit受信でfalse）
-bool usi_quit_received(void);             //quitコマンドを受信済みであればtrue
+bool usi_stop_pending(void);              //quit受信済み、またはstop/gameoverが未処理であればtrue
 
 //エラー処理
 #define USI_UNKNOWN_MSG 0

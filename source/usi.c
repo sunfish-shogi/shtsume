@@ -68,16 +68,18 @@ static char *st_usi_pos[N_SQUARE] = {
 static char *st_usi_koma[8]       = {
     "*","P","L","N","S","G","B","R"
 };
-static pthread_mutex_t  st_lock;
+static pthread_mutex_t  st_lock = PTHREAD_MUTEX_INITIALIZER; //コマンドライン時もbn_searchから使用する
 static strqueue_t  *st_que = NULL;
 static struct timespec st_rqpt = { 0, 1000000};
 static bool st_quit_received = false;   //st_lockで保護する
+static int  st_stop_pending  = 0;       //キュー内の未処理のstop/gameoverの数（st_lockで保護する）
 
 /* -----------
  スタティック関数
  ----------- */
 static void *receiving_thread(void *arg);
 static bool retrieve_message(char *buf);
+static bool is_stop_command(const char *buf);
 
 /* -----------
  実装部
@@ -429,7 +431,7 @@ int usi_main (void){
 
 /* ---------------------------------------------------------------------------
  usi_init
- USIエンジンとしての初期化処理（標準出力の設定、LOGファイル、排他ロックの準備）
+ USIエンジンとしての初期化処理（標準出力の設定、LOGファイルの準備）
  --------------------------------------------------------------------------- */
 void usi_init        (void){
     setvbuf(stdout, NULL, _IONBF, 0);     //将棋所から利用する場合、この設定が必要。
@@ -438,8 +440,6 @@ void usi_init        (void){
     if(path) strncpy(g_logfile_path,path, strlen(path));
     else     path = getcwd(g_logfile_path,sizeof(g_logfile_path));
     create_log_filename();
-    
-    pthread_mutex_init(&st_lock, NULL);
     return;
 }
 
@@ -538,8 +538,8 @@ void *receiving_thread       (void *arg){
 bool usi_receive             (const char *buf){
     if(!strncmp(buf, "quit", strlen("quit"))){
         //メインイベントループを終了させ、探索中であれば中断させる。
-        //探索開始時にg_stop_receivedがリセットされても中断が失われないよう、
-        //st_quit_receivedを先に立てる（bn_search参照）。
+        //探索開始時にg_stop_receivedが初期化されても中断が失われないよう、
+        //st_quit_receivedを先に立てる（usi_stop_pending, bn_search参照）。
         pthread_mutex_lock(&st_lock);
         st_quit_received = true;
         pthread_mutex_unlock(&st_lock);
@@ -549,10 +549,10 @@ bool usi_receive             (const char *buf){
     //排他ロック
     pthread_mutex_lock(&st_lock);
     
-    if(!strncmp(buf, "stop", strlen("stop"))){
-        g_stop_received = true;
-    }
-    if(!strncmp(buf, "gameover", strlen("gameover"))){
+    if(is_stop_command(buf)){
+        //探索開始時にg_stop_receivedが初期化されても中断が失われないよう、
+        //未処理の数を数えておく（usi_stop_pending, bn_search参照）。
+        st_stop_pending++;
         g_stop_received = true;
     }
     if(!strncmp(buf, "ponderhit", strlen("ponderhit"))){
@@ -565,15 +565,24 @@ bool usi_receive             (const char *buf){
     return true;
 }
 /* ---------------------------------------------------------------------------
- usi_quit_received
+ usi_stop_pending
+ キューはFIFOのため、未処理のstop/gameoverは処理中のコマンドより後に受信したもの。
  [戻り値]
- quitコマンドを受信済みであればtrue
+ quitを受信済み、またはstop/gameoverが未処理であればtrue
  --------------------------------------------------------------------------- */
-bool usi_quit_received       (void){
+bool usi_stop_pending        (void){
     pthread_mutex_lock(&st_lock);
-    bool quit = st_quit_received;
+    bool pending = st_quit_received || st_stop_pending > 0;
     pthread_mutex_unlock(&st_lock);
-    return quit;
+    return pending;
+}
+/* ---------------------------------------------------------------------------
+ is_stop_command
+ 探索を中断させるコマンド(stop/gameover)であればtrue
+ --------------------------------------------------------------------------- */
+static bool is_stop_command  (const char *buf){
+    return !strncmp(buf, "stop", strlen("stop")) ||
+           !strncmp(buf, "gameover", strlen("gameover"));
 }
 /* ---------------------------------------------------------------------------
  retrieve_message
@@ -590,6 +599,7 @@ bool retrieve_message        (char *buf){
         }
         if(st_que){
             st_que = strqueue_pop(st_que, buf);
+            if(is_stop_command(buf)) st_stop_pending--;
             pthread_mutex_unlock(&st_lock);
             return true;
         }

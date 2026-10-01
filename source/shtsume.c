@@ -161,9 +161,8 @@ void bn_search                  (const sdata_t   *sdata,
     g_gc_num = 0;                     /* gcの実施回数                  */
     //中断フラグ
     g_suspend       = false;           /* g_stop_received。後程廃止    */
-    g_stop_received = false;           /* GUIからstopを受信したらTRUE   */
-    if(usi_quit_received())            /* quit受信済みの場合は中断させる  */
-        g_stop_received = true;
+    /* GUIからstopを受信したらTRUE。探索開始前に受信したstop/quitは保持する */
+    g_stop_received = usi_stop_pending();
     //時間処理
     g_prev_nodes   = 0;                /* 前回update時の探索局面数       */
     g_prev_update  = g_info_interval;  /* 経過時間(searchinfのupdate用) */
