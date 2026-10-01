@@ -32,7 +32,7 @@ char g_logfile_name[SZ_FILEPATH];     // USI起動時に生成されるログフ
 char g_errorlog_name[SZ_FILEPATH];    // エラー発生時に生成されるログファイル
 sdata_t g_sdata;                      // USIデータ受け渡し用
 
-bool g_stop_received = false;         // stopコマンド受信の有無
+_Atomic bool g_stop_received = false; // stopコマンド受信の有無（別スレッドから書き込まれる）
 clock_t g_ponderhit_time;             // ponderhitの時刻
 char g_str[SZ_USIBUFFER];             // USIコマンドバッファ
 
@@ -537,11 +537,13 @@ void *receiving_thread       (void *arg){
  --------------------------------------------------------------------------- */
 bool usi_receive             (const char *buf){
     if(!strncmp(buf, "quit", strlen("quit"))){
-        //探索中であれば中断させ、メインイベントループを終了させる
-        g_stop_received = true;
+        //メインイベントループを終了させ、探索中であれば中断させる。
+        //探索開始時にg_stop_receivedがリセットされても中断が失われないよう、
+        //st_quit_receivedを先に立てる（bn_search参照）。
         pthread_mutex_lock(&st_lock);
         st_quit_received = true;
         pthread_mutex_unlock(&st_lock);
+        g_stop_received = true;
         return false;
     }
     //排他ロック
@@ -561,6 +563,17 @@ bool usi_receive             (const char *buf){
     //排他ロック解除
     pthread_mutex_unlock(&st_lock);
     return true;
+}
+/* ---------------------------------------------------------------------------
+ usi_quit_received
+ [戻り値]
+ quitコマンドを受信済みであればtrue
+ --------------------------------------------------------------------------- */
+bool usi_quit_received       (void){
+    pthread_mutex_lock(&st_lock);
+    bool quit = st_quit_received;
+    pthread_mutex_unlock(&st_lock);
+    return quit;
 }
 /* ---------------------------------------------------------------------------
  retrieve_message

@@ -93,7 +93,7 @@ extern unsigned int g_byoyomi;        //秒読み(mS)
 extern unsigned int g_binc, g_winc;   //１手ごとの加算時間(mS)
 extern sdata_t g_sdata;               //USIデータ受け渡し用
 extern char g_str[SZ_USIBUFFER];      //USIコマンドバッファ
-extern bool g_stop_received;          //stopコマンド受信時　true;
+extern _Atomic bool g_stop_received;  //stopコマンド受信時　true;（別スレッドから書き込まれる）
 extern char g_logfile_path[256];      //logfileへのpath
 
 //LOG記録用
@@ -122,6 +122,7 @@ int  usi_main       (void);
 void usi_init       (void);               //USIエンジンとしての初期化処理
 void usi_event_loop (void);               //メインイベントループ（quit受信で戻る）
 bool usi_receive    (const char *buf);    //受信メッセージの処理（quit受信でfalse）
+bool usi_quit_received(void);             //quitコマンドを受信済みであればtrue
 
 //エラー処理
 #define USI_UNKNOWN_MSG 0
